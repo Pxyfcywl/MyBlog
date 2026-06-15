@@ -3,7 +3,7 @@ import { ref } from 'vue'
 
 const profile = ref({
   name: 'hatsuyufei',
-  avatar: '../pictures/nomove.png', // 填入图片URL，留空显示默认emoji
+  avatar: '/pictures/nomove.png', // 填入图片URL，留空显示默认emoji
   bio: '用代码构建世界，用文字记录思考',
   location: '中国',
   social: [

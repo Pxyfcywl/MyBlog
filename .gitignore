@@ -1,0 +1,27 @@
+# 环境变量（包含密钥）
+backend/.env
+
+# 数据库
+backend/blog.db
+
+# 上传文件
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Python
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.venv/
+*.pyc
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

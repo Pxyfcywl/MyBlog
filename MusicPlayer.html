@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极客音乐播放器组件</title>
+    <style>
+        /* 基础页面样式演示（模拟你的博客背景） */
+        body {
+            margin: 0;
+            padding: 0;
+            height: 200vh; /* 故意让页面很高，方便测试是否会触发外部滚动 */
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        .mock-article {
+            padding: 40px;
+            color: #666;
+            font-size: 1.2rem;
+        }
+
+        /* ================= 播放器核心样式 ================= */
+        :root {
+            --primary-color: #3b82f6;
+            --bg-color: rgba(255, 255, 255, 0.92);
+            --border-radius: 16px;
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+        }
+
+        /* 整个播放器大容器：固定在屏幕左下角 */
+        .music-player {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            width: 380px;
+            background: var(--bg-color);
+            backdrop-filter: blur(12px);
+            border-radius: var(--border-radius);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            z-index: 9999;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ----------- 上册：音乐列表面板 ----------- */
+        .player-upper {
+            max-height: 0; /* 默认隐藏 */
+            opacity: 0;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            border-bottom: 0px solid #e2e8f0;
+        }
+
+        /* 当激活展开时 */
+        .music-player.list-open .player-upper {
+            max-height: 260px; /* 固定列表最大高度 */
+            opacity: 1;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        /* 关键核心：滚动区域 */
+        .playlist {
+            padding: 12px;
+            max-height: 260px;
+            overflow-y: auto;
+            /* 🚀 核心黑科技：阻止滚动链冒泡，鼠标悬停滚动时，绝对不影响后面文章的滚动 */
+            overscroll-behavior: contain; 
+        }
+
+        /* 歌曲单行样式 */
+        .song-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-bottom: 4px;
+        }
+
+        .song-item:hover {
+            background: rgba(59, 130, 246, 0.08);
+        }
+
+        .song-item.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .song-name {
+            font-size: 0.95rem;
+            color: var(--text-main);
+            /* 防止歌名过长 */
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 220px;
+        }
+        .song-item.active .song-name { color: var(--primary-color); }
+
+        .song-author {
+            font-size: 0.85rem;
+            color: var(--text-sub);
+        }
+
+        /* ----------- 下册：控制底栏 ----------- */
+        .player-lower {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* 左侧圆形音乐图标区 */
+        .music-icon-box {
+            position: relative;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.4rem;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* 图标旋转动画 */
+        .music-icon-box.playing {
+            animation: rotateDisk 4s linear infinite;
+        }
+
+        @keyframes rotateDisk {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 中间：进度与控制核心区 */
+        .controls-center {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        /* 按钮栏（上一首、播放、下一首） */
+        .btn-group {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .player-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-main);
+            padding: 0;
+            transition: transform 0.1s, color 0.2s;
+        }
+        .player-btn:hover { color: var(--primary-color); transform: scale(1.1); }
+        .player-btn:active { transform: scale(0.95); }
+        .play-toggle { font-size: 1.3rem; }
+
+        /* 进度条轨道 */
+        .progress-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--text-sub);
+        }
+
+        .progress-bar-container {
+            flex-grow: 1;
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .progress-fill {
+            height: 100%;
+            width: 30%; /* JS 动态控制 */
+            background: var(--primary-color);
+            border-radius: 2px;
+            position: relative;
+        }
+
+        /* 进度条上的小拖拽圆点 */
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            right: -4px;
+            top: -3px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            box-shadow: 0 0 4px rgba(0,0,0,0.2);
+        }
+
+        /* 右侧：模式与列表展开 */
+        .controls-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 44px;
+            flex-shrink: 0;
+        }
+
+        /* 自定义美化滚动条 */
+        .playlist::-webkit-scrollbar {
+            width: 5px;
+        }
+        .playlist::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .playlist::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .playlist::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="mock-article">
+        <h2>我的个人博客主页展示</h2>
+        <p>往下滑动页面测试播放器的穿透锁定效果...</p>
+        <p>（此处省略一万字技术文章）</p>
+    </div>
+
+    <div class="music-player" id="musicPlayer">
+        
+        <div class="player-upper">
+            <div class="playlist" id="playlistContainer">
+                </div>
+        </div>
+
+        <div class="player-lower">
+            <div class="music-icon-box" id="diskIcon">🎵</div>
+
+            <div class="controls-center">
+                <div class="btn-group">
+                    <button class="player-btn" title="上一首">⏮</button>
+                    <button class="player-btn play-toggle" id="playBtn" title="播放/暂停">▶️</button>
+                    <button class="player-btn" title="下一首">⏭</button>
+                </div>
+                <div class="progress-wrapper">
+                    <span id="currentTime">01:23</span>
+                    <div class="progress-bar-container" id="progressBar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <span id="totalTime">04:05</span>
+                </div>
+            </div>
+
+            <div class="controls-right">
+                <button class="player-btn" id="modeBtn" title="切换播放模式">🔁</button>
+                <button class="player-btn" id="listToggleBtn" title="展开/收起列表">📊</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 1. 模拟的 8 首经典歌曲数据
+        const mockSongs = [
+            { name: "Code & Coffee", author: "GeekMusician" },
+            { name: "算法竞赛不相信眼泪", author: "ICPCer" },
+            { name: "FastAPI Streaming Beat", author: "BackendDev" },
+            { name: "Vue3 Dynamic Rain", author: "Evan You" },
+            { name: "Latex Matrix Symphony", author: "Euler" },
+            { name: "Markdown Soul", author: "Typoraist" },
+            { name: "Server Deployment Night", author: "DockerKing" },
+            { name: "Chroma Vector Database", author: "AIEngineer" }
+        ];
+
+        // 2. DOM 节点获取
+        const musicPlayer = document.getElementById('musicPlayer');
+        const listToggleBtn = document.getElementById('listToggleBtn');
+        const playlistContainer = document.getElementById('playlistContainer');
+        const playBtn = document.getElementById('playBtn');
+        const diskIcon = document.getElementById('diskIcon');
+        const modeBtn = document.getElementById('modeBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+
+        let isPlaying = false;
+        let playMode = 0; // 0: 顺序播放, 1: 随机播放, 2: 单曲循环
+        const modes = [
+            { icon: '🔁', title: '顺序播放' },
+            { icon: '🔀', title: '随机播放' },
+            { icon: '🔂', title: '单曲循环' }
+        ];
+
+        // 3. 初始化并动态渲染 8 首歌，保证左右两端对齐
+        function initPlaylist() {
+            playlistContainer.innerHTML = mockSongs.map((song, index) => `
+                <div class="song-item ${index === 0 ? 'active' : ''}" onclick="selectSong(${index})">
+                    <span class="song-name">${song.name}</span>
+                    <span class="song-author">${song.author}</span>
+                </div>
+            `).join('');
+        }
+
+        // 选择歌曲
+        function selectSong(index) {
+            document.querySelectorAll('.song-item').forEach((el, i) => {
+                el.classList.toggle('active', i === index);
+            });
+            // 这里可以对接实际的切歌逻辑
+            console.log("当前切歌至: ", mockSongs[index].name);
+        }
+
+        // 4. 交互事件绑定
+
+        // 控制上册（列表）的展开与收起
+        listToggleBtn.addEventListener('click', () => {
+            musicPlayer.classList.toggle('list-open');
+        });
+
+        // 播放/暂停状态同步
+        playBtn.addEventListener('click', () => {
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                playBtn.innerText = '⏸';
+                diskIcon.classList.add('playing');
+            } else {
+                playBtn.innerText = '▶️';
+                diskIcon.classList.remove('playing');
+            }
+        });
+
+        // 切换播放模式
+        modeBtn.addEventListener('click', () => {
+            playMode = (playMode + 1) % 3;
+            modeBtn.innerText = modes[playMode].icon;
+            modeBtn.title = modes[playMode].title;
+        });
+
+        // 模拟点击进度条
+        progressBar.addEventListener('click', (e) => {
+            const rect = progressBar.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const widthPercent = (clickX / rect.width) * 100;
+            progressFill.style.width = Math.min(Math.max(widthPercent, 0), 100) + '%';
+        });
+
+        // 执行初始化
+        initPlaylist();
+    </script>
+</body>
+</html>

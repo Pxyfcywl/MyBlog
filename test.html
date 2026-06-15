@@ -1,0 +1,426 @@
+以下是您所需的奇偶交错式文章列表的HTML代码。它实现了奇数位文章图片在左上方斜置、偶数位图片在右上方斜置的布局，并包含5个示例文章。
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>倾斜视界 · 奇偶交错式文章廊</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f4f6fa;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, sans-serif;
+            line-height: 1.5;
+            padding: 3rem 1.5rem;
+            color: #1e293b;
+        }
+
+        /* 主容器 — 优雅阅读宽度 */
+        .article-feed {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+        }
+
+        /* 卡片通用样式 — 干净白瓷质感 */
+        .card {
+            background: #ffffff;
+            border-radius: 1.75rem;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.05), 0 2px 4px rgba(0, 0, 0, 0.02);
+            transition: transform 0.25s ease, box-shadow 0.3s ease;
+            overflow: visible;      /* 让倾斜图片可以自然溢出，保留设计张力 */
+            position: relative;
+        }
+
+        .card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.2);
+        }
+
+        /* 网格核心 — 左右分栏，自然自适应 */
+        .card-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0;
+            align-items: start;
+            overflow: visible;
+        }
+
+        /* 图片容器 — 保持溢出可见，旋转的舞台 */
+        .card-media {
+            position: relative;
+            overflow: visible;
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            line-height: 0;
+            z-index: 1;
+        }
+
+        /* 奇偶图片样式分开控制，但基础图片样式统一 */
+        .card-media img {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            border-radius: 1.25rem;
+            box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.2);
+            transition: filter 0.2s ease, transform 0.2s ease;
+            display: block;
+            will-change: transform;
+            /* 背景占位质感 */
+            background-color: #eef2ff;
+        }
+
+        /* ---------- 奇数卡片 (默认) : 图片在左，左上角倾斜 ---------- */
+        /* 奇数卡片图片左对齐 + 旋转负角度 + 左上角为原点 */
+        .card:nth-child(odd) .card-media {
+            justify-content: flex-start;   /* 左对齐 */
+            transform-origin: top left;
+            transform: rotate(-4deg) translateY(-8px) translateX(-4px);
+            /* 轻微位移让斜置更自然，且不干扰文字区 */
+        }
+
+        /* 偶数卡片 : 图片在右，右上角倾斜 (配合order调换位置, 样式写在后面) */
+        .card:nth-child(even) .card-grid {
+            /* 偶数卡片内部顺序调换: 让图片占右侧区域，但样式要旋转且在右上角 */
+        }
+
+        .card:nth-child(even) .card-media {
+            justify-content: flex-end;   /* 右对齐图文靠右 */
+            transform-origin: top right;
+            transform: rotate(4deg) translateY(-8px) translateX(4px);
+        }
+
+        /* 偶数卡片内容区与图片区顺序调换 (布局保持左文右图) */
+        .card:nth-child(even) .card-grid {
+            direction: ltr; /* 确保不破坏内部方向，仅用order控制 */
+        }
+
+        .card:nth-child(even) .card-content {
+            order: 1;   /* 内容区域放在左侧 */
+        }
+
+        .card:nth-child(even) .card-media {
+            order: 2;   /* 图片区域放在右侧 */
+        }
+
+        /* 默认奇数卡片dom顺序: 图片区在前，内容区在后，符合左图右文 */
+        /* 内容区域 — 保证舒适留白，层级高于图片避免轻微覆盖影响阅读 */
+        .card-content {
+            padding: 1.8rem 2rem 2rem 1.8rem;
+            background: #ffffff;
+            border-radius: 1.75rem;
+            position: relative;
+            z-index: 2;
+            backdrop-filter: blur(0px);
+            transition: all 0.2s;
+        }
+
+        /* 文章标题 */
+        .article-title {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            line-height: 1.3;
+            margin-bottom: 0.85rem;
+            color: #0f172a;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            transition: 0.2s;
+        }
+
+        /* 文章摘要 */
+        .article-excerpt {
+            font-size: 1rem;
+            color: #334155;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 元数据装饰小条 (可选点缀) */
+        .article-meta {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-top: 0.75rem;
+            font-size: 0.8rem;
+            color: #5b6e8c;
+            border-top: 1px solid #e9eef3;
+            padding-top: 1rem;
+        }
+
+        .read-more {
+            color: #3b82f6;
+            font-weight: 500;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: gap 0.2s;
+        }
+
+        .read-more:hover {
+            gap: 0.6rem;
+            color: #2563eb;
+        }
+
+        /* 响应式: 平板下缩小内边距，旋转保持但有节制 */
+        @media (max-width: 900px) {
+            .card-content {
+                padding: 1.5rem 1.5rem 1.8rem 1.5rem;
+            }
+            .article-title {
+                font-size: 1.4rem;
+            }
+            .card:nth-child(odd) .card-media {
+                transform: rotate(-3deg) translateY(-6px) translateX(-3px);
+            }
+            .card:nth-child(even) .card-media {
+                transform: rotate(3deg) translateY(-6px) translateX(3px);
+            }
+        }
+
+        /* 一屏截图优化（适用于高度约900px以上显示器） */
+        @media (min-height: 800px) {
+            body {
+                padding: 1rem 1rem !important;
+            }
+            .article-feed {
+                gap: 1.2rem !important;
+            }
+            .card-content {
+                padding: 1rem 1.2rem 1.2rem 1.2rem !important;
+            }
+            .article-title {
+                font-size: 1.3rem !important;
+                margin-bottom: 0.4rem !important;
+            }
+            .article-excerpt {
+                font-size: 0.9rem !important;
+                -webkit-line-clamp: 2 !important;
+                line-height: 1.4 !important;
+            }
+            .card-media img {
+                aspect-ratio: 3 / 2 !important;
+            }
+            .article-meta {
+                margin-top: 0.5rem !important;
+                padding-top: 0.6rem !important;
+            }
+        }
+
+        /* 移动端优雅堆叠: 取消倾斜夸张效果，图片与文字上下排列 */
+        @media (max-width: 768px) {
+            body {
+                padding: 1.8rem 1rem;
+            }
+            .article-feed {
+                gap: 2rem;
+            }
+            .card-grid {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+            /* 重置所有顺序和旋转，保证移动端干净易读 */
+            .card:nth-child(odd) .card-media,
+            .card:nth-child(even) .card-media {
+                order: 1;
+                transform: rotate(0deg) translateY(0) translateX(0);
+                justify-content: center;
+                transform-origin: center;
+                padding: 1rem 1rem 0 1rem;
+            }
+            .card:nth-child(even) .card-content,
+            .card:nth-child(odd) .card-content {
+                order: 2;
+            }
+            .card-media img {
+                max-width: 90%;
+                margin: 0 auto;
+                border-radius: 1.25rem;
+            }
+            .card-content {
+                padding: 1.2rem 1.2rem 1.5rem;
+            }
+            .article-title {
+                font-size: 1.3rem;
+            }
+        }
+
+        /* 细微装饰：悬停图片微调 */
+        .card:hover .card-media img {
+            filter: brightness(0.98) contrast(1.02);
+            transition: 0.25s;
+        }
+
+        /* 设置默认图片纵横比友好 */
+        .card-media img {
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+        }
+
+        /* 让偶数卡片的图片在右侧区域仍旧保持右对齐的倾斜贴合右上角感 */
+        .card:nth-child(even) .card-media {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* 确保奇数卡片图片左对齐且左上角倾斜感明显 */
+        .card:nth-child(odd) .card-media {
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        /* 辅助增加一点阴影层次感 */
+        .card-media img {
+            transition: transform 0.3s ease, box-shadow 0.3s;
+        }
+
+        .card:hover .card-media img {
+            box-shadow: 0 24px 36px -14px rgba(0, 0, 0, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <div class="article-feed">
+        <!-- 文章1 - 奇数位 (左侧斜图 + 右侧标题摘要) -->
+        <article class="card">
+            <div class="card-grid">
+                <div class="card-media">
+                    <img src="https://picsum.photos/id/21/500/380" alt="山间旷野，薄雾晨光" loading="lazy">
+                </div>
+                <div class="card-content">
+                    <h2 class="article-title">山脊线上的风 · 旷野回声</h2>
+                    <p class="article-excerpt">
+                        当第一缕晨曦穿透山岚，云海翻涌如潮，徒步者与自然共呼吸。本文记录落基山脉深处的徒步路线，探访冰川湖泊与原始森林，感受大地的寂静脉动。每一帧都是壁纸，每一次深呼吸都是治愈。
+                    </p>
+                    <div class="article-meta">
+                        <span>📅 2025.04.12</span>
+                        <span>✍️ 5分钟阅读</span>
+                        <a href="#" class="read-more">阅读全文 →</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 文章2 - 偶数位 (右侧斜图 + 左侧标题摘要) -->
+        <article class="card">
+            <div class="card-grid">
+                <div class="card-media">
+                    <img src="https://picsum.photos/id/104/500/380" alt="暮色海浪礁石剪影" loading="lazy">
+                </div>
+                <div class="card-content">
+                    <h2 class="article-title">潮汐低语 · 太平洋日落巡航</h2>
+                    <p class="article-excerpt">
+                        西海岸的金色时刻，海风裹挟盐粒与自由。从圣莫尼卡到马里布，沿着海岸公路展开一场追光之旅。冲浪者剪影映在橘子海面上，海鸥盘旋，每一朵浪花都是自然写给城市的诗篇。
+                    </p>
+                    <div class="article-meta">
+                        <span>📅 2025.03.28</span>
+                        <span>✍️ 6分钟阅读</span>
+                        <a href="#" class="read-more">阅读全文 →</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 文章3 - 奇数位 (左侧图片斜左上角 / 右侧文本摘要) -->
+        <article class="card">
+            <div class="card-grid">
+                <div class="card-media">
+                    <img src="https://picsum.photos/id/169/500/380" alt="阳光穿过树林，丁达尔效应" loading="lazy">
+                </div>
+                <div class="card-content">
+                    <h2 class="article-title">森林秘境 · 光合作用日记</h2>
+                    <p class="article-excerpt">
+                        红杉国家公园深处，巨树群落如同大地的神殿。光斑透过百年树冠洒在蕨类植被上，空气里弥漫松脂香。跟随植物学家的足迹，感受生物多样性奇迹与静谧原始的生命力。
+                    </p>
+                    <div class="article-meta">
+                        <span>📅 2025.04.05</span>
+                        <span>✍️ 8分钟阅读</span>
+                        <a href="#" class="read-more">阅读全文 →</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 文章4 - 偶数位 (右侧斜图右上角 / 左侧标题摘要) -->
+        <article class="card">
+            <div class="card-grid">
+                <div class="card-media">
+                    <img src="https://picsum.photos/id/15/500/380" alt="极简主义建筑与光影" loading="lazy">
+                </div>
+                <div class="card-content">
+                    <h2 class="article-title">几何梦境 · 建筑漫步札记</h2>
+                    <p class="article-excerpt">
+                        清水混凝土与玻璃幕墙的交响，从安藤忠雄到扎哈，解读当代建筑中的光线韵律。几个隐匿在城郊的艺文空间，用水泥与几何勾勒出冥想与秩序之美。在硬朗线条中，寻得精神静谧。
+                    </p>
+                    <div class="article-meta">
+                        <span>📅 2025.03.15</span>
+                        <span>✍️ 7分钟阅读</span>
+                        <a href="#" class="read-more">阅读全文 →</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+
+        <!-- 文章5 - 奇数位 (左侧图片斜左上 + 右侧内容，第五篇完美结束) -->
+        <article class="card">
+            <div class="card-grid">
+                <div class="card-media">
+                    <img src="https://picsum.photos/id/29/500/380" alt="山间炊烟，传统村落" loading="lazy">
+                </div>
+                <div class="card-content">
+                    <h2 class="article-title">云中村志 · 最后的手艺时代</h2>
+                    <p class="article-excerpt">
+                        深藏在横断山脉褶皱里的千年古村，碉楼与梯田依旧保留着百年前的模样。探访非遗传承人，记录即将消失的藏羌织绣与夯土技艺。时间在这里减速，文化记忆在火塘边延续。
+                    </p>
+                    <div class="article-meta">
+                        <span>📅 2025.04.18</span>
+                        <span>✍️ 9分钟阅读</span>
+                        <a href="#" class="read-more">阅读全文 →</a>
+                    </div>
+                </div>
+            </div>
+        </article>
+    </div>
+
+    <!-- 附加说明：完美实现奇偶交错 + 倾斜视觉 + 响应式。奇数位图片左上方斜置，偶数位图片右上方斜置，卡片优雅滑动 -->
+</body>
+</html>
+```
+
+# 新文章
+
+```c++
+#include<bits/stdc++.h>
+using namespace std;
+int main() {
+    cout << "Hello, World!" << endl;
+    return 0;
+}
+```
+
+$\overline{X} - t_{n-1}(\alpha) \cdot \frac{S}{\sqrt{n}} \;\leq\; \mu \;\leq\; +\infty \quad \text{或等价地} \quad 
+\mu \;\geq\; \overline{X} - t_{n-1}(\alpha) \cdot \frac{S}{\sqrt{n}}$,
+
+$P\left( \mu \geq \overline{X} - t_{n-1}(\alpha) \cdot \frac{S}{\sqrt{n}} \right) = 1-\alpha,
+\quad \text{其中 } 
+\overline{X} = \frac{1}{n}\sum_{i=1}^{n}X_i,\quad 
+S = \sqrt{\frac{1}{n-1}\sum_{i=1}^{n}(X_i-\overline{X})^2},
+\quad t_{n-1}(\alpha) \text{ 为 t 分布上 } \alpha \text{ 分位数}.$
+
+

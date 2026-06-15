@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m venv .venv)",
+      "Bash(python tools/import_articles.py)",
+      "Bash(curl -s http://127.0.0.1:8000/api/articles?page=1\\\\&page_size=3)",
+      "Bash(python -m json.tool)",
+      "Bash(curl *)",
+      "Bash(netstat -ano)",
+      "Bash(npx vite *)"
+    ]
+  }
+}

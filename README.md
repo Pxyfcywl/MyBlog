@@ -54,6 +54,7 @@ docker compose up -d --build
 
 详细部署指南：[docs/deploy-azure.md](docs/deploy-azure.md)
 日常运维操作：[docs/server-operations.md](docs/server-operations.md)
+问题排查：[docs/troubleshooting.md](docs/troubleshooting.md)
 
 ## 环境变量
 
@@ -148,3 +149,5 @@ scp -i key.pem -r uploads user@ip:~/MyBlog/backend/
 ## 更新日志
 
 见 [CHANGELOG.md](CHANGELOG.md)，每次提交前更新。
+
+

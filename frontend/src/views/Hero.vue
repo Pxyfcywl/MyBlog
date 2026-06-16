@@ -6,7 +6,7 @@ const router = useRouter()
 const showContent = ref(false)
 
 // 自定义背景图片URL，留空使用默认渐变
-const bgImage = '../public/background.jpg'
+const bgImage = '/background.jpg'
 
 const lines = [
   '你好，欢迎来到我的博客',
@@ -74,6 +74,13 @@ onUnmounted(() => {
   </div>
 </template>
 
+@font-face {
+  font-family: 'Ma Shan Zheng';
+  src: url('/fonts/MaShanZheng-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-display: swap;
+}
+
 <style scoped>
 .hero {
   position: relative;
@@ -108,7 +115,8 @@ onUnmounted(() => {
 }
 
 .typewriter {
-  font-size: 2rem;
+  font-size: 2.2rem;
+  font-weight: 700;
   min-height: 2.5rem;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
   background: linear-gradient(90deg, #60a5fa, #a78bfa, #f472b6, #60a5fa);
@@ -117,6 +125,7 @@ onUnmounted(() => {
   -webkit-background-clip: text;
   color: transparent;
   animation: gradientShift 4s linear infinite;
+  font-family: 'Ma Shan Zheng', 'STXingkai', 'FZShuTi', 'LiSu', serif;
 }
 
 @keyframes gradientShift {

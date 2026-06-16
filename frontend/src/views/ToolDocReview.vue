@@ -3,6 +3,7 @@ import { ref, computed, onUnmounted } from 'vue'
 import { MdPreview } from 'md-editor-v3'
 import 'md-editor-v3/lib/preview.css'
 import { toolsApi } from '../api'
+import ReviewSidebar from '../components/ReviewSidebar.vue'
 
 // ==================== LLM 配置 ====================
 const llmConfig = ref({
@@ -39,7 +40,7 @@ async function testLlmConnection() {
 }
 
 // ==================== 解析流程状态 ====================
-type Step = 'upload' | 'processing' | 'done' | 'review'
+type Step = 'upload' | 'processing' | 'done' | 'review' | 'manual-review'
 const step = ref<Step>('upload')
 
 // 上传
@@ -59,6 +60,9 @@ const reviewPrompt = ref('')
 const reviewLoading = ref(false)
 const reviewResult = ref('')
 const reviewError = ref('')
+
+// 人工审核
+const sidebarVisible = ref(true)
 
 // ==================== 文件选择 ====================
 function onFileSelect(e: Event) {
@@ -166,6 +170,32 @@ async function submitReview() {
   }
 }
 
+// ==================== 人工审核 ====================
+function enterManualReview() {
+  sidebarVisible.value = true
+  step.value = 'manual-review'
+}
+
+// 复制审查结果
+const resultCopied = ref(false)
+function copyReviewResult() {
+  navigator.clipboard.writeText(reviewResult.value).then(() => {
+    resultCopied.value = true
+    setTimeout(() => { resultCopied.value = false }, 2000)
+  })
+}
+
+// 下载 .md
+function downloadReviewResult() {
+  const blob = new Blob([reviewResult.value], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `审查结果_${new Date().toISOString().slice(0, 10)}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 // ==================== 重置 ====================
 function resetAll() {
   stopPolling()
@@ -178,6 +208,7 @@ function resetAll() {
   reviewPrompt.value = ''
   reviewResult.value = ''
   reviewError.value = ''
+  sidebarVisible.value = true
 }
 </script>
 
@@ -337,6 +368,19 @@ function resetAll() {
         <button class="btn btn-secondary" @click="resetAll">🔄 重新上传</button>
       </div>
 
+      <!-- 审查完成后操作 -->
+      <div v-if="reviewResult" class="post-review-actions">
+        <button class="btn btn-primary btn-lg" @click="enterManualReview">
+          📄 进入人工审核
+        </button>
+        <button class="btn btn-secondary" @click="copyReviewResult">
+          {{ resultCopied ? '✅ 已复制' : '📋 复制结果' }}
+        </button>
+        <button class="btn btn-secondary" @click="downloadReviewResult">
+          💾 下载 .md
+        </button>
+      </div>
+
       <!-- 审查区域 -->
       <div v-if="step === 'review'" class="review-section">
         <h3 class="sub-title">🤖 LLM 智能审查</h3>
@@ -366,6 +410,40 @@ function resetAll() {
           <div class="review-content">
             <MdPreview :modelValue="reviewResult" previewTheme="github" />
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Step 4: 人工审核 -->
+    <section v-if="step === 'manual-review'" class="manual-review-section">
+      <!-- 顶部工具栏 -->
+      <div class="manual-toolbar">
+        <button class="btn btn-secondary" @click="step = 'done'">
+          ← 返回
+        </button>
+        <span class="toolbar-title">📄 人工审核模式</span>
+        <button
+          class="btn btn-secondary sidebar-toggle"
+          :class="{ active: sidebarVisible }"
+          @click="sidebarVisible = !sidebarVisible"
+        >
+          📋 AI结果
+        </button>
+      </div>
+
+      <!-- 主体区域：侧边栏 + PDF搜索工具 -->
+      <div class="manual-body">
+        <ReviewSidebar
+          :visible="sidebarVisible"
+          :reviewResult="reviewResult"
+          @update:visible="sidebarVisible = $event"
+        />
+        <div class="pdf-area">
+          <iframe
+            src="/pdf-search-tool.html"
+            class="pdf-search-iframe"
+            frameborder="0"
+          ></iframe>
         </div>
       </div>
     </section>
@@ -742,5 +820,74 @@ function resetAll() {
   margin-top: 1.5rem;
   display: flex;
   gap: 0.8rem;
+}
+
+/* ---- 审查完成后操作 ---- */
+.post-review-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+/* ---- 人工审核模式 ---- */
+.manual-review-section {
+  position: fixed;
+  top: 0;
+  left: var(--sidenav-width, 72px);
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  z-index: 50;
+}
+
+.manual-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.toolbar-title {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.sidebar-toggle {
+  white-space: nowrap;
+}
+
+.sidebar-toggle.active {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.manual-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.pdf-area {
+  flex: 1;
+  min-width: 0;
+}
+
+.pdf-search-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
 }
 </style>

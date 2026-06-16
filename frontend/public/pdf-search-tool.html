@@ -1,0 +1,1742 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF多关键词搜索工具</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: #f0f2f5;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      .app-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+      }
+
+      /* ===== Top Navigation Bar ===== */
+      .top-nav {
+        background: white;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        z-index: 100;
+        flex-shrink: 0;
+      }
+
+      .nav-main {
+        display: flex;
+        align-items: center;
+        padding: 10px 16px;
+        gap: 12px;
+        border-bottom: 1px solid #eee;
+      }
+
+      /* Back Button */
+      .back-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s;
+        flex-shrink: 0;
+        text-decoration: none;
+        color: #666;
+      }
+      .back-btn:hover {
+        background: #667eea;
+        border-color: #667eea;
+        color: white;
+      }
+      .back-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .nav-separator {
+        width: 1px;
+        height: 28px;
+        background: #e0e0e0;
+        flex-shrink: 0;
+      }
+
+      /* File Controls */
+      .file-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+
+      .upload-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.25s;
+        white-space: nowrap;
+      }
+      .upload-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.35);
+      }
+
+      .current-filename {
+        font-size: 13px;
+        color: #333;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 500;
+      }
+
+      .file-list-btn {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 7px 10px;
+        background: #f5f5f5;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #666;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .file-list-btn:hover {
+        background: #eee;
+        border-color: #ccc;
+      }
+      .file-list-btn .badge {
+        background: #667eea;
+        color: white;
+        padding: 1px 6px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        min-width: 18px;
+        text-align: center;
+      }
+
+      /* Group Controls */
+      .group-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex: 1;
+        overflow-x: auto;
+        padding: 2px 0;
+      }
+
+      .group-tab {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        background: #f8f8f8;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.15s;
+        white-space: nowrap;
+        user-select: none;
+        position: relative;
+      }
+      .group-tab:hover {
+        background: #f0f0f0;
+        color: #555;
+      }
+      .group-tab.active {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+        font-weight: 600;
+      }
+      .group-tab .keyword-count-badge {
+        background: rgba(0, 0, 0, 0.15);
+        padding: 1px 5px;
+        border-radius: 8px;
+        font-size: 10px;
+        font-weight: 600;
+      }
+      .group-tab.active .keyword-count-badge {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      .group-add-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border: 1px dashed #ccc;
+        border-radius: 6px;
+        background: transparent;
+        color: #aaa;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.15s;
+        flex-shrink: 0;
+      }
+      .group-add-btn:hover {
+        border-color: #667eea;
+        color: #667eea;
+      }
+
+      /* Group Keyword Dropdown */
+      .group-dropdown {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        width: 360px;
+        max-height: 500px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+        overflow: hidden;
+        display: none;
+        z-index: 200;
+      }
+      .group-dropdown.show {
+        display: block;
+      }
+
+      .group-dropdown-header {
+        padding: 12px 14px;
+        background: #f8f9fa;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .group-dropdown-header .group-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: #333;
+        cursor: pointer;
+      }
+      .group-dropdown-header .group-name:hover {
+        color: #667eea;
+      }
+      .group-dropdown-actions {
+        display: flex;
+        gap: 4px;
+      }
+      .group-action-btn {
+        background: none;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 11px;
+        color: #999;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .group-action-btn:hover {
+        background: #f5f5f5;
+        color: #666;
+      }
+      .group-action-btn.danger:hover {
+        background: #ffebee;
+        color: #f44336;
+        border-color: #f4433640;
+      }
+
+      .keyword-input-row {
+        display: flex;
+        gap: 6px;
+        padding: 12px 14px;
+        border-bottom: 1px solid #eee;
+      }
+      .keyword-input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 13px;
+        transition: all 0.2s;
+      }
+      .keyword-input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      }
+      .keyword-add-btn {
+        padding: 8px 14px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      .keyword-add-btn:hover {
+        background: #5a6fd6;
+      }
+
+      .keyword-list {
+        max-height: 280px;
+        overflow-y: auto;
+        padding: 8px 14px;
+      }
+      .keyword-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        border-radius: 6px;
+        margin-bottom: 4px;
+        animation: fadeIn 0.2s ease;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-4px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .keyword-item-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+      }
+      .keyword-color-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .keyword-text {
+        font-weight: 500;
+        font-size: 13px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .keyword-match-count {
+        background: rgba(0, 0, 0, 0.08);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        min-width: 32px;
+        text-align: center;
+        flex-shrink: 0;
+      }
+      .keyword-remove {
+        background: none;
+        border: none;
+        color: #ccc;
+        cursor: pointer;
+        opacity: 0.5;
+        font-size: 14px;
+        padding: 2px 4px;
+        margin-left: 6px;
+        flex-shrink: 0;
+      }
+      .keyword-remove:hover {
+        opacity: 1;
+        color: #f44336;
+      }
+
+      .group-dropdown-footer {
+        padding: 10px 14px;
+        border-top: 1px solid #eee;
+        display: flex;
+        gap: 6px;
+      }
+      .search-btn {
+        flex: 1;
+        padding: 8px;
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border: none;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.25s;
+      }
+      .search-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(245, 87, 108, 0.35);
+      }
+      .clear-btn {
+        padding: 8px 12px;
+        background: #f5f5f5;
+        color: #888;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .clear-btn:hover {
+        background: #eee;
+        color: #666;
+      }
+
+      .data-actions {
+        padding: 8px 14px;
+        border-top: 1px solid #f0f0f0;
+        display: flex;
+        gap: 6px;
+      }
+      .data-action-btn {
+        flex: 1;
+        padding: 6px;
+        font-size: 11px;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        background: #fafafa;
+        color: #888;
+        cursor: pointer;
+        transition: all 0.15s;
+        text-align: center;
+      }
+      .data-action-btn:hover {
+        background: #f0f0f0;
+        color: #555;
+        border-color: #ccc;
+      }
+
+      .rename-input {
+        border: 1px solid #667eea;
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: 13px;
+        width: 100px;
+        outline: none;
+      }
+
+      .empty-hint {
+        text-align: center;
+        padding: 20px;
+        color: #ccc;
+        font-size: 13px;
+      }
+
+      /* ===== Main Content ===== */
+      .main-content {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+
+      /* Toolbar */
+      .toolbar {
+        padding: 8px 16px;
+        background: white;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-shrink: 0;
+      }
+      .page-nav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .page-nav button,
+      .zoom-controls button,
+      .nav-match button {
+        padding: 5px 10px;
+        background: #f0f0f0;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.15s;
+      }
+      .page-nav button:hover,
+      .zoom-controls button:hover {
+        background: #e4e4e4;
+      }
+      .page-nav button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .page-info {
+        font-size: 13px;
+        color: #666;
+      }
+
+      .zoom-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .zoom-level {
+        font-size: 13px;
+        color: #666;
+        min-width: 46px;
+        text-align: center;
+      }
+      .page-controls {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+      }
+      .page-btn {
+        padding: 5px 10px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.15s;
+      }
+      .page-btn:hover {
+        background: #5a6fd6;
+      }
+      .page-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+
+      /* PDF Viewer - Single Page with scroll */
+      .pdf-viewer {
+        flex: 1;
+        overflow: auto;
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #e8e8e8;
+        position: relative;
+      }
+      .page-container {
+        position: relative;
+        background: white;
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
+        line-height: 0;
+        margin-bottom: 20px;
+      }
+      .page-container canvas {
+        display: block;
+      }
+      .page-highlight-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        pointer-events: none;
+      }
+      .page-text-layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        overflow: hidden;
+        line-height: 1;
+      }
+      .page-text-layer > span {
+        color: transparent;
+        position: absolute;
+        white-space: pre;
+        transform-origin: 0% 0%;
+      }
+      .page-text-layer ::selection {
+        background: rgba(100, 149, 237, 0.3);
+      }
+
+      .welcome-screen {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #bbb;
+        user-select: none;
+      }
+      .welcome-screen svg {
+        width: 72px;
+        height: 72px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+      }
+      .welcome-screen h2 {
+        font-size: 22px;
+        margin-bottom: 8px;
+        color: #999;
+      }
+      .welcome-screen p {
+        font-size: 14px;
+      }
+
+      /* Stats Bar */
+      .stats-bar {
+        padding: 8px 16px;
+        background: white;
+        border-top: 1px solid #eee;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #999;
+        flex-shrink: 0;
+        overflow-x: auto;
+      }
+      .keyword-stats-container {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-shrink: 0;
+      }
+      .keyword-stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.15s;
+        user-select: none;
+        white-space: nowrap;
+        flex-shrink: 0;
+      }
+      .keyword-stat:hover {
+        background: #eef0f3;
+      }
+      .keyword-stat.active {
+        background: #eef0ff;
+        box-shadow: 0 0 0 1px #667eea40;
+      }
+      .keyword-stat .kw-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .keyword-stat .kw-name {
+        font-weight: 500;
+        color: #333;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .keyword-stat .kw-count {
+        color: #888;
+      }
+      .keyword-nav {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-left: 2px;
+      }
+      .keyword-nav button {
+        background: #667eea;
+        color: white;
+        border: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 4px;
+        font-size: 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+      }
+      .keyword-nav button:hover {
+        background: #5a6fd6;
+      }
+      .keyword-nav button:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+      }
+      .stat-info {
+        margin-left: auto;
+        font-size: 11px;
+        color: #aaa;
+      }
+
+      #fileInput {
+        display: none;
+      }
+
+      .scrollbar::-webkit-scrollbar {
+        width: 5px;
+      }
+      .scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .scrollbar::-webkit-scrollbar-thumb {
+        background: #ddd;
+        border-radius: 3px;
+      }
+      .scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #ccc;
+      }
+
+      #importFileInput {
+        display: none;
+      }
+
+      .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 150;
+        display: none;
+      }
+      .overlay.show {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-container">
+      <!-- Top Navigation Bar -->
+      <div class="top-nav">
+        <div class="nav-main">
+          <div class="file-controls">
+            <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              选择文件
+            </button>
+            <input type="file" id="fileInput" accept=".pdf" multiple />
+            <input type="file" id="importFileInput" accept=".json" style="display:none" />
+
+            <span class="current-filename" id="currentFilename">未选择文件</span>
+
+            <button class="file-list-btn" onclick="toggleFileDropdown(event)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+              </svg>
+              文件列表
+              <span class="badge" id="fileCount">0</span>
+            </button>
+          </div>
+
+          <div class="nav-separator"></div>
+
+          <div class="group-controls" id="groupControls">
+            <!-- Groups will be rendered here -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main-content">
+        <div class="toolbar" id="toolbar" style="display: none">
+          <div class="zoom-controls">
+            <button onclick="zoomOut()">−</button>
+            <span class="zoom-level" id="zoomLevel">150%</span>
+            <button onclick="zoomIn()">+</button>
+          </div>
+          <div class="page-controls">
+            <button class="page-btn" onclick="prevPage()" id="prevPageBtn">◀</button>
+            <span class="page-info">第 <span id="currentPageNum2">1</span> / <span id="totalPagesNum2">1</span> 页</span>
+            <button class="page-btn" onclick="nextPage()" id="nextPageBtn">▶</button>
+          </div>
+        </div>
+
+        <div class="pdf-viewer" id="pdfViewer">
+          <div class="welcome-screen" id="welcomeScreen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+            <h2>PDF多关键词搜索工具</h2>
+            <p>选择PDF文件开始使用</p>
+          </div>
+          <div id="pageContainer" class="page-container" style="display: none">
+            <canvas id="pdfCanvas"></canvas>
+            <canvas id="highlightCanvas" class="page-highlight-canvas"></canvas>
+            <div class="page-text-layer" id="textLayer"></div>
+          </div>
+        </div>
+
+        <div class="stats-bar" id="statsBar" style="display: none">
+          <div class="keyword-stats-container" id="keywordStats"></div>
+          <div class="stat-info" id="statInfo"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overlay for closing dropdowns -->
+    <div class="overlay" id="overlay" onclick="closeAllDropdowns()"></div>
+
+    <script>
+      pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+      const HIGHLIGHT_COLORS = [
+        { bg: "rgba(255, 235, 59, 0.45)", border: "#fbc02d" },
+        { bg: "rgba(76, 175, 80, 0.4)", border: "#388e3c" },
+        { bg: "rgba(33, 150, 243, 0.4)", border: "#1565c0" },
+        { bg: "rgba(255, 152, 0, 0.4)", border: "#e65100" },
+        { bg: "rgba(156, 39, 176, 0.35)", border: "#7b1fa2" },
+        { bg: "rgba(244, 67, 54, 0.35)", border: "#c62828" },
+        { bg: "rgba(0, 188, 212, 0.4)", border: "#00838f" },
+        { bg: "rgba(233, 30, 99, 0.35)", border: "#ad1457" },
+        { bg: "rgba(121, 85, 72, 0.4)", border: "#4e342e" },
+        { bg: "rgba(96, 125, 139, 0.4)", border: "#37474f" },
+      ];
+
+      // State
+      let pdfFiles = [];
+      let currentFileIndex = -1;
+      let currentPdf = null;
+      let currentPage = 1;
+      let totalPages = 0;
+      let currentViewport = null;
+      let scale = 1.5;
+      let pageTextContents = {};
+      let touchStartY = 0;
+      let touchStartX = 0;
+
+      let keywordGroups = [{ name: "分组1", keywords: [] }];
+      let selectedGroups = new Set([0]); // 支持多选分组
+      let groupMatches = {};
+      let keywordMatchIndex = {};
+      let activeKeywordIndex = -1;
+      let caseSensitive = false;
+
+      // Init
+      document.getElementById("fileInput").addEventListener("change", handleFileSelect);
+      loadGroups();
+      renderGroupTabs();
+
+      // ===== File Management =====
+
+      function handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        files.forEach((file) => {
+          if (file.type === "application/pdf") {
+            pdfFiles.push({ name: file.name, file: file });
+          }
+        });
+        updateFileUI();
+        if (currentFileIndex === -1 && pdfFiles.length > 0) selectFile(0);
+        e.target.value = "";
+      }
+
+      function updateFileUI() {
+        document.getElementById("fileCount").textContent = pdfFiles.length;
+        document.getElementById("currentFilename").textContent =
+          currentFileIndex >= 0 ? pdfFiles[currentFileIndex].name : "未选择文件";
+      }
+
+      function toggleFileDropdown(e) {
+        e.stopPropagation();
+        closeAllDropdowns();
+
+        // Create dropdown dynamically
+        const existing = document.getElementById("fileDropdownDynamic");
+        if (existing) {
+          existing.remove();
+          document.getElementById("overlay").classList.remove("show");
+          return;
+        }
+
+        const btn = e.currentTarget;
+        const rect = btn.getBoundingClientRect();
+
+        const dropdown = document.createElement("div");
+        dropdown.id = "fileDropdownDynamic";
+        dropdown.style.cssText = `
+          position: fixed;
+          top: ${rect.bottom + 6}px;
+          left: ${rect.left}px;
+          width: 320px;
+          max-height: 400px;
+          background: white;
+          border-radius: 10px;
+          box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+          z-index: 300;
+          display: flex;
+          flex-direction: column;
+        `;
+        dropdown.onclick = (ev) => ev.stopPropagation();
+
+        let listHtml = '<div class="file-dropdown-empty">暂无文件</div>';
+        if (pdfFiles.length > 0) {
+          listHtml = pdfFiles.map((f, i) => `
+            <div class="file-dropdown-item ${i === currentFileIndex ? "active" : ""}" onclick="selectFile(${i})" style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;">
+              <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0;">
+                <span style="font-size:18px;">📄</span>
+                <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>
+              </div>
+              <button onclick="event.stopPropagation(); removeFile(${i})" style="background:none;border:none;color:#ccc;cursor:pointer;padding:4px 6px;font-size:14px;border-radius:4px;">✕</button>
+            </div>
+          `).join("");
+        }
+
+        dropdown.innerHTML = `
+          <div style="padding:12px 14px;background:#f8f9fa;border-bottom:1px solid #eee;font-size:13px;font-weight:600;color:#333;">已加载的文件</div>
+          <div style="max-height:300px;overflow-y:auto;">${listHtml}</div>
+        `;
+
+        document.body.appendChild(dropdown);
+        document.getElementById("overlay").classList.add("show");
+      }
+
+      function selectFile(index) {
+        currentFileIndex = index;
+        currentPage = 1;
+        pageTextContents = {};
+        updateFileUI();
+        closeAllDropdowns();
+        loadPdf(pdfFiles[index].file);
+      }
+
+      function removeFile(index) {
+        pdfFiles.splice(index, 1);
+        if (currentFileIndex >= pdfFiles.length) currentFileIndex = pdfFiles.length - 1;
+        if (currentFileIndex >= 0) {
+          selectFile(currentFileIndex);
+        } else {
+          currentPdf = null;
+          document.getElementById("toolbar").style.display = "none";
+          document.getElementById("pageContainer").style.display = "none";
+          document.getElementById("welcomeScreen").style.display = "flex";
+          document.getElementById("statsBar").style.display = "none";
+          document.getElementById("currentFilename").textContent = "未选择文件";
+        }
+        updateFileUI();
+      }
+
+      async function loadPdf(file) {
+        const arrayBuffer = await file.arrayBuffer();
+        currentPdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        totalPages = currentPdf.numPages;
+        currentPage = 1;
+        document.getElementById("toolbar").style.display = "flex";
+        document.getElementById("pageContainer").style.display = "block";
+        document.getElementById("welcomeScreen").style.display = "none";
+        document.getElementById("statsBar").style.display = "flex";
+        document.getElementById("currentFilename").textContent = file.name;
+        renderKeywordStats();
+        await renderCurrentPage();
+        if (getActiveKeywords().length > 0) searchAllKeywords();
+      }
+
+      // ===== Single Page Rendering =====
+
+      async function renderCurrentPage() {
+        if (!currentPdf) return;
+
+        const page = await currentPdf.getPage(currentPage);
+        const viewport = page.getViewport({ scale });
+        currentViewport = viewport;
+
+        const container = document.getElementById("pageContainer");
+        container.style.width = viewport.width + "px";
+        container.style.height = viewport.height + "px";
+
+        const canvas = document.getElementById("pdfCanvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        const highlightCanvas = document.getElementById("highlightCanvas");
+        highlightCanvas.width = viewport.width;
+        highlightCanvas.height = viewport.height;
+
+        const textLayer = document.getElementById("textLayer");
+        textLayer.style.width = viewport.width + "px";
+        textLayer.style.height = viewport.height + "px";
+
+        // Render page
+        const ctx = canvas.getContext("2d");
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        // Render text layer
+        const textContent = await page.getTextContent();
+        pageTextContents[currentPage] = textContent;
+        renderTextLayer(textContent, viewport);
+
+        // Update page indicator
+        document.getElementById("currentPageNum2").textContent = currentPage;
+        document.getElementById("totalPagesNum2").textContent = totalPages;
+
+        // Update page buttons
+        document.getElementById("prevPageBtn").disabled = currentPage <= 1;
+        document.getElementById("nextPageBtn").disabled = currentPage >= totalPages;
+
+        // Draw highlights
+        drawCurrentPageHighlights();
+      }
+
+      function renderTextLayer(textContent, viewport) {
+        const textLayerDiv = document.getElementById("textLayer");
+        if (!textLayerDiv) return;
+        textLayerDiv.innerHTML = "";
+
+        const items = textContent.items;
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (!item.str) continue;
+          const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+          const fontHeight = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3]);
+          const angle = Math.atan2(tx[1], tx[0]);
+
+          const span = document.createElement("span");
+          span.textContent = item.str;
+          span.style.left = tx[4] + "px";
+          span.style.top = tx[5] - fontHeight + "px";
+          span.style.fontSize = fontHeight + "px";
+          span.style.fontFamily = item.fontName ? item.fontName.replace("+", "") : "sans-serif";
+          if (angle !== 0) span.style.transform = "rotate(" + angle + "rad)";
+          if (item.width > 0) {
+            span.style.width = item.width * viewport.scale + "px";
+            span.style.letterSpacing = "0px";
+          }
+          textLayerDiv.appendChild(span);
+        }
+      }
+
+      function drawCurrentPageHighlights() {
+        const activeKeywords = getActiveKeywords();
+        const highlightCanvas = document.getElementById("highlightCanvas");
+        const ctx = highlightCanvas.getContext("2d");
+        ctx.clearRect(0, 0, highlightCanvas.width, highlightCanvas.height);
+
+        const textContent = pageTextContents[currentPage];
+        const viewport = currentViewport;
+        if (!textContent || !viewport || activeKeywords.length === 0) return;
+
+        const items = textContent.items;
+        const fullText = items.map((it) => it.str).join("");
+
+        let globalCharOffset = 0;
+        const itemRanges = items.map((item) => {
+          const range = {
+            item,
+            start: globalCharOffset,
+            end: globalCharOffset + (item.str ? item.str.length : 0),
+          };
+          globalCharOffset += item.str ? item.str.length : 0;
+          return range;
+        });
+
+        let colorIndex = 0;
+        activeKeywords.forEach(({ keyword, groupIndex, kwIndex }) => {
+          if (!keyword.trim()) return;
+          const color = HIGHLIGHT_COLORS[colorIndex % HIGHLIGHT_COLORS.length];
+          colorIndex++;
+          const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const regex = new RegExp(escaped, caseSensitive ? "g" : "gi");
+          let match;
+
+          while ((match = regex.exec(fullText)) !== null) {
+            const matchStart = match.index;
+            const matchEnd = matchStart + match[0].length;
+
+            for (let r = 0; r < itemRanges.length; r++) {
+              const range = itemRanges[r];
+              if (range.end <= matchStart || range.start >= matchEnd) continue;
+              const item = range.item;
+              if (!item.str || !item.transform) continue;
+
+              const overlapStart = Math.max(matchStart, range.start) - range.start;
+              const overlapEnd = Math.min(matchEnd, range.end) - range.start;
+              const itemLen = item.str.length;
+
+              const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+              const fontHeight = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3]);
+              const itemWidth = item.width > 0
+                ? item.width * viewport.scale
+                : fontHeight * item.str.length * 0.6;
+              const charW = itemWidth / itemLen;
+
+              const hlX = tx[4] + charW * overlapStart;
+              const hlW = charW * (overlapEnd - overlapStart);
+              const hlY = tx[5] - fontHeight;
+              const hlH = fontHeight * 1.05;
+
+              ctx.fillStyle = color.bg;
+              ctx.fillRect(hlX, hlY, hlW, hlH);
+              ctx.strokeStyle = color.border;
+              ctx.lineWidth = 1;
+              ctx.globalAlpha = 0.6;
+              ctx.strokeRect(hlX + 0.5, hlY + 0.5, hlW - 1, hlH - 1);
+              ctx.globalAlpha = 1.0;
+            }
+          }
+        });
+      }
+
+      // ===== Page Navigation =====
+
+      function prevPage() {
+        if (currentPage > 1) {
+          currentPage--;
+          renderCurrentPage();
+        }
+      }
+
+      function nextPage() {
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderCurrentPage();
+        }
+      }
+
+      // Touch swipe support
+      const pdfViewer = document.getElementById("pdfViewer");
+      pdfViewer.addEventListener("touchstart", (e) => {
+        touchStartY = e.touches[0].clientY;
+        touchStartX = e.touches[0].clientX;
+      }, { passive: true });
+
+      pdfViewer.addEventListener("touchend", (e) => {
+        const touchEndY = e.changedTouches[0].clientY;
+        const touchEndX = e.changedTouches[0].clientX;
+        const diffY = touchStartY - touchEndY;
+        const diffX = touchStartX - touchEndX;
+
+        // Horizontal swipe (more X movement than Y)
+        if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+          if (diffX > 0) {
+            nextPage(); // Swipe left = next
+          } else {
+            prevPage(); // Swipe right = prev
+          }
+        }
+      }, { passive: true });
+
+      // Keyboard support
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+          e.preventDefault();
+          prevPage();
+        } else if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+          e.preventDefault();
+          nextPage();
+        }
+      });
+
+      // ===== Group Management =====
+
+      function renderGroupTabs() {
+        const container = document.getElementById("groupControls");
+        let html = keywordGroups.map((g, i) => {
+          const matches = groupMatches[i] || [];
+          const totalMatches = matches.length;
+          const isSelected = selectedGroups.has(i);
+          return `
+            <div class="group-tab ${isSelected ? "active" : ""}"
+                 onclick="toggleGroupSelection(${i})"
+                 oncontextmenu="event.preventDefault(); showGroupDropdown(${i})"
+                 title="点击选择/取消，右键编辑">
+              ${escapeHtml(g.name)}
+              ${g.keywords.length > 0 ? `<span class="keyword-count-badge">${totalMatches > 0 ? totalMatches : g.keywords.length}</span>` : ""}
+            </div>
+          `;
+        }).join("");
+        html += `<button class="group-add-btn" onclick="addGroup()" title="新建分组">+</button>`;
+        container.innerHTML = html;
+      }
+
+      function toggleGroupSelection(index) {
+        if (selectedGroups.has(index)) {
+          selectedGroups.delete(index);
+        } else {
+          selectedGroups.add(index);
+        }
+        renderGroupTabs();
+        if (currentPdf) searchAllKeywords();
+      }
+
+      function showGroupDropdown(index) {
+        // Remove existing dropdown
+        const existing = document.querySelector('.group-dropdown');
+        if (existing) existing.remove();
+
+        const group = keywordGroups[index];
+        const matches = groupMatches[index] || [];
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'group-dropdown show';
+        dropdown.dataset.groupIndex = index;
+        dropdown.onclick = (e) => e.stopPropagation();
+
+        dropdown.innerHTML = `
+          <div class="group-dropdown-header">
+            <span class="group-name" onclick="renameGroup(${index})" title="点击重命名">${escapeHtml(group.name)}</span>
+            <div class="group-dropdown-actions">
+              <button class="group-action-btn" onclick="renameGroup(${index})">✏️</button>
+              <button class="group-action-btn danger" onclick="deleteGroup(${index})">🗑️</button>
+            </div>
+          </div>
+          <div class="keyword-input-row">
+            <input type="text" class="keyword-input" id="keywordInput" placeholder="输入关键词后回车添加" />
+            <button class="keyword-add-btn" onclick="addKeyword(${index})">添加</button>
+          </div>
+          <div class="search-options" style="padding: 8px 14px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px;">
+            <label style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: #666; cursor: pointer;">
+              <input type="checkbox" id="caseSensitive" ${caseSensitive ? 'checked' : ''} onchange="toggleCaseSensitive(this.checked)" style="cursor: pointer;" />
+              区分大小写
+            </label>
+          </div>
+          <div class="keyword-list scrollbar" id="keywordList"></div>
+          <div class="group-dropdown-footer">
+            <button class="search-btn" onclick="searchAllKeywords()">🔍 搜索</button>
+            <button class="clear-btn" onclick="clearGroup(${index})">清除</button>
+          </div>
+          <div class="data-actions">
+            <button class="data-action-btn" onclick="exportGroups()">📤 导出</button>
+            <button class="data-action-btn" onclick="document.getElementById('importFileInput').click()">📥 导入</button>
+            <button class="data-action-btn" onclick="clearSavedData()">🗑️ 重置</button>
+          </div>
+        `;
+
+        // Position dropdown
+        const tab = document.querySelectorAll('.group-tab')[index];
+        const rect = tab.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        dropdown.style.top = (rect.bottom + 6) + 'px';
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.zIndex = '300';
+
+        document.body.appendChild(dropdown);
+        document.getElementById("overlay").classList.add("show");
+
+        // Setup keyword input
+        const kwInput = document.getElementById("keywordInput");
+        kwInput.addEventListener("keydown", function(e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            addKeyword(index);
+          }
+        });
+
+        renderKeywordList(index);
+      }
+
+      function renderKeywordList(groupIndex) {
+        const group = keywordGroups[groupIndex];
+        const container = document.getElementById("keywordList");
+        if (!container) return;
+
+        const matches = groupMatches[groupIndex] || [];
+
+        if (group.keywords.length === 0) {
+          container.innerHTML = '<div class="empty-hint">暂无关键词，请添加</div>';
+          return;
+        }
+
+        container.innerHTML = group.keywords.map((kw, i) => {
+          const color = HIGHLIGHT_COLORS[i % HIGHLIGHT_COLORS.length];
+          const count = matches.filter((m) => m.keywordIndex === i).length;
+          return `
+            <div class="keyword-item" style="background: ${color.bg}; border: 1px solid ${color.border}40;">
+              <div class="keyword-item-info">
+                <span class="keyword-color-dot" style="background: ${color.border}"></span>
+                <span class="keyword-text">${escapeHtml(kw)}</span>
+                <span class="keyword-match-count">${count}</span>
+              </div>
+              <button class="keyword-remove" onclick="removeKeyword(${groupIndex}, ${i})">✕</button>
+            </div>
+          `;
+        }).join("");
+      }
+
+      function closeAllDropdowns() {
+        document.querySelectorAll('.group-dropdown').forEach(d => d.remove());
+        const fileDropdown = document.getElementById("fileDropdownDynamic");
+        if (fileDropdown) fileDropdown.remove();
+        document.getElementById("overlay").classList.remove("show");
+      }
+
+      function addGroup() {
+        const num = keywordGroups.length + 1;
+        const newIndex = keywordGroups.length;
+        keywordGroups.push({ name: "分组" + num, keywords: [] });
+        selectedGroups.add(newIndex);
+        groupMatches[newIndex] = [];
+        saveGroups();
+        renderGroupTabs();
+      }
+
+      function deleteGroup(index) {
+        if (keywordGroups.length <= 1) {
+          alert("至少保留一个分组");
+          return;
+        }
+        if (!confirm("确认删除「" + keywordGroups[index].name + "」？")) return;
+        keywordGroups.splice(index, 1);
+        // Rebuild selectedGroups with new indices
+        const newSelected = new Set();
+        selectedGroups.forEach(i => {
+          if (i < index) newSelected.add(i);
+          else if (i > index) newSelected.add(i - 1);
+        });
+        selectedGroups = newSelected.size > 0 ? newSelected : new Set([0]);
+        saveGroups();
+        closeAllDropdowns();
+        renderGroupTabs();
+        if (currentPdf) searchAllKeywords();
+      }
+
+      function renameGroup(index) {
+        const nameEl = document.querySelector('.group-dropdown .group-name');
+        if (!nameEl) return;
+        const current = keywordGroups[index].name;
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = current;
+        input.className = "rename-input";
+        input.style.width = Math.max(100, current.length * 14) + "px";
+        nameEl.replaceWith(input);
+        input.focus();
+        input.select();
+
+        function finish() {
+          const val = input.value.trim() || current;
+          keywordGroups[index].name = val;
+          saveGroups();
+          closeAllDropdowns();
+          renderGroupTabs();
+        }
+        input.addEventListener("keydown", function(e) {
+          e.stopPropagation();
+          if (e.key === "Enter") finish();
+          if (e.key === "Escape") { input.value = current; finish(); }
+        });
+        input.addEventListener("blur", finish);
+        input.addEventListener("click", (e) => e.stopPropagation());
+      }
+
+      function addKeyword(groupIndex) {
+        const input = document.getElementById("keywordInput");
+        if (!input) return;
+        const keyword = input.value.trim();
+        if (!keyword) return;
+        const group = keywordGroups[groupIndex];
+        if (group.keywords.some((k) => k.toLowerCase() === keyword.toLowerCase())) {
+          alert("该关键词已存在于当前分组");
+          return;
+        }
+        group.keywords.push(keyword);
+        input.value = "";
+        saveGroups();
+        renderGroupTabs();
+        renderKeywordList(groupIndex);
+        if (currentPdf) searchAllKeywords();
+      }
+
+      function removeKeyword(groupIndex, kwIndex) {
+        keywordGroups[groupIndex].keywords.splice(kwIndex, 1);
+        saveGroups();
+        renderGroupTabs();
+        renderKeywordList(groupIndex);
+        if (currentPdf) searchAllKeywords();
+      }
+
+      function clearGroup(index) {
+        keywordGroups[index].keywords = [];
+        groupMatches[index] = [];
+        keywordMatchIndex = {};
+        activeKeywordIndex = -1;
+        saveGroups();
+        renderGroupTabs();
+        renderKeywordList(index);
+        renderKeywordStats();
+        if (currentPdf) drawCurrentPageHighlights();
+      }
+
+      function getActiveKeywords() {
+        // Return all keywords from selected groups with group info
+        const keywords = [];
+        selectedGroups.forEach(groupIndex => {
+          const group = keywordGroups[groupIndex];
+          if (group) {
+            group.keywords.forEach((kw, kwIndex) => {
+              keywords.push({ keyword: kw, groupIndex, kwIndex });
+            });
+          }
+        });
+        return keywords;
+      }
+
+      function getActiveGroup() {
+        // Return first selected group for backward compatibility
+        const first = selectedGroups.values().next().value;
+        return keywordGroups[first !== undefined ? first : 0];
+      }
+
+      function toggleCaseSensitive(checked) {
+        caseSensitive = checked;
+        if (currentPdf) searchAllKeywords();
+      }
+
+      // ===== Search =====
+
+      async function searchAllKeywords() {
+        if (!currentPdf) return;
+
+        const allKeywords = getActiveKeywords();
+
+        // Clear matches for all selected groups
+        selectedGroups.forEach(gi => {
+          groupMatches[gi] = [];
+        });
+
+        if (allKeywords.length === 0) {
+          renderGroupTabs();
+          renderKeywordStats();
+          drawCurrentPageHighlights();
+          return;
+        }
+
+        const allMatches = [];
+
+        for (let p = 1; p <= totalPages; p++) {
+          const textContent = pageTextContents[p];
+          if (!textContent) continue;
+          const fullText = textContent.items.map((it) => it.str).join("");
+
+          allKeywords.forEach(({ keyword, groupIndex, kwIndex }) => {
+            if (!keyword.trim()) return;
+            const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const regex = new RegExp(escaped, caseSensitive ? "g" : "gi");
+            let m;
+            while ((m = regex.exec(fullText)) !== null) {
+              allMatches.push({
+                page: p,
+                groupIndex,
+                keywordIndex: kwIndex,
+                keyword,
+                index: m.index
+              });
+            }
+          });
+        }
+
+        // Group matches by groupIndex
+        allMatches.forEach(m => {
+          if (!groupMatches[m.groupIndex]) {
+            groupMatches[m.groupIndex] = [];
+          }
+          groupMatches[m.groupIndex].push(m);
+        });
+
+        renderGroupTabs();
+        renderKeywordStats();
+        drawCurrentPageHighlights();
+      }
+
+      // ===== Match Navigation =====
+
+      function updateMatchNav() {
+        keywordMatchIndex = {};
+        activeKeywordIndex = -1;
+        renderKeywordStats();
+      }
+
+      function renderKeywordStats() {
+        const container = document.getElementById("keywordStats");
+
+        if (selectedGroups.size === 0) {
+          container.innerHTML = "";
+          document.getElementById("statInfo").textContent = "未选择分组";
+          return;
+        }
+
+        let html = "";
+        let totalMatches = 0;
+        let colorIndex = 0;
+
+        selectedGroups.forEach(groupIndex => {
+          const group = keywordGroups[groupIndex];
+          if (!group) return;
+          const matches = groupMatches[groupIndex] || [];
+
+          group.keywords.forEach((kw, kwIdx) => {
+            const color = HIGHLIGHT_COLORS[colorIndex % HIGHLIGHT_COLORS.length];
+            colorIndex++;
+            const kwMatches = matches.filter(m => m.keywordIndex === kwIdx);
+            const total = kwMatches.length;
+            totalMatches += total;
+            const key = `${groupIndex}-${kwIdx}`;
+            const current = keywordMatchIndex[key] !== undefined ? keywordMatchIndex[key] + 1 : (total > 0 ? 1 : 0);
+            const isActive = activeKeywordIndex === key;
+
+            html += `
+              <div class="keyword-stat ${isActive ? "active" : ""}" onclick="activateKeyword('${key}', ${groupIndex}, ${kwIdx})">
+                <span class="kw-dot" style="background: ${color.border}"></span>
+                <span class="kw-name">${escapeHtml(kw)}</span>
+                <span class="kw-count">${current}/${total}</span>
+                ${isActive && total > 0 ? `
+                  <div class="keyword-nav">
+                    <button onclick="event.stopPropagation(); prevKeywordMatch('${key}', ${groupIndex}, ${kwIdx})" ${current <= 1 ? "disabled" : ""}>◀</button>
+                    <button onclick="event.stopPropagation(); nextKeywordMatch('${key}', ${groupIndex}, ${kwIdx})" ${current >= total ? "disabled" : ""}>▶</button>
+                  </div>
+                ` : ""}
+              </div>
+            `;
+          });
+        });
+
+        container.innerHTML = html;
+
+        const totalPages = currentPdf ? currentPdf.numPages : 0;
+        document.getElementById("statInfo").textContent = `共 ${totalMatches} 个匹配 · ${totalPages} 页`;
+      }
+
+      function activateKeyword(key, groupIndex, kwIndex) {
+        const matches = groupMatches[groupIndex] || [];
+        const kwMatches = matches.filter(m => m.keywordIndex === kwIndex);
+
+        if (activeKeywordIndex === key) {
+          activeKeywordIndex = -1;
+        } else {
+          activeKeywordIndex = key;
+          if (kwMatches.length > 0 && keywordMatchIndex[key] === undefined) {
+            keywordMatchIndex[key] = 0;
+            goToKeywordMatch(key, groupIndex, kwIndex);
+          }
+        }
+        renderKeywordStats();
+      }
+
+      function prevKeywordMatch(key, groupIndex, kwIndex) {
+        const matches = groupMatches[groupIndex] || [];
+        const kwMatches = matches.filter(m => m.keywordIndex === kwIndex);
+        const current = keywordMatchIndex[key] || 0;
+
+        if (current > 0) {
+          keywordMatchIndex[key] = current - 1;
+          goToKeywordMatch(key, groupIndex, kwIndex);
+          renderKeywordStats();
+        }
+      }
+
+      function nextKeywordMatch(key, groupIndex, kwIndex) {
+        const matches = groupMatches[groupIndex] || [];
+        const kwMatches = matches.filter(m => m.keywordIndex === kwIndex);
+        const current = keywordMatchIndex[key] || 0;
+
+        if (current < kwMatches.length - 1) {
+          keywordMatchIndex[key] = current + 1;
+          goToKeywordMatch(key, groupIndex, kwIndex);
+          renderKeywordStats();
+        }
+      }
+
+      async function goToKeywordMatch(key, groupIndex, kwIndex) {
+        const matches = groupMatches[groupIndex] || [];
+        const kwMatches = matches.filter(m => m.keywordIndex === kwIndex);
+        const matchIdx = keywordMatchIndex[key] || 0;
+        const match = kwMatches[matchIdx];
+
+        if (!match) return;
+
+        // Change page if needed
+        if (match.page !== currentPage) {
+          currentPage = match.page;
+          await renderCurrentPage();
+        }
+
+        // Find the match position in the page
+        const textContent = pageTextContents[currentPage];
+        const viewport = currentViewport;
+        if (!textContent || !viewport) return;
+
+        const items = textContent.items;
+        const targetIndex = match.index; // This is the index in the full concatenated text
+
+        // Rebuild the full text and find which item contains the target match
+        let globalCharOffset = 0;
+        let targetY = 0;
+        let found = false;
+
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (!item.str || !item.transform) {
+            globalCharOffset += (item.str || "").length;
+            continue;
+          }
+
+          const itemStart = globalCharOffset;
+          const itemEnd = globalCharOffset + item.str.length;
+
+          // Check if the target index falls within this item
+          if (targetIndex >= itemStart && targetIndex < itemEnd) {
+            const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+            targetY = tx[5];
+            found = true;
+            break;
+          }
+
+          globalCharOffset += item.str.length;
+        }
+
+        if (found) {
+          const container = document.getElementById("pageContainer");
+          const viewer = document.getElementById("pdfViewer");
+          if (container && viewer) {
+            // Calculate scroll position to show the match in the center of the viewer
+            const containerRect = container.getBoundingClientRect();
+            const viewerRect = viewer.getBoundingClientRect();
+            // targetY is relative to the page, convert to screen position
+            const matchScreenY = containerRect.top + targetY - viewerRect.top;
+            // Scroll to put the match in the center of the viewer
+            const targetScrollTop = viewer.scrollTop + matchScreenY - viewerRect.height / 2;
+            viewer.scrollTo({ top: Math.max(0, targetScrollTop), behavior: "smooth" });
+          }
+        } else {
+          // Fallback: scroll to page start
+          const container = document.getElementById("pageContainer");
+          if (container) {
+            container.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      }
+
+      // ===== Zoom =====
+
+      function zoomIn() {
+        scale = Math.min(scale + 0.25, 3);
+        updateZoom();
+        if (currentPdf) renderCurrentPage();
+      }
+
+      function zoomOut() {
+        scale = Math.max(scale - 0.25, 0.5);
+        updateZoom();
+        if (currentPdf) renderCurrentPage();
+      }
+
+      function updateZoom() {
+        document.getElementById("zoomLevel").textContent = Math.round(scale * 100) + "%";
+      }
+
+      // ===== Persistence =====
+
+      const STORAGE_KEY = "pdf-search-tool-groups";
+
+      function saveGroups() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(keywordGroups));
+        } catch (e) {}
+      }
+
+      function loadGroups() {
+        try {
+          const data = localStorage.getItem(STORAGE_KEY);
+          if (data) {
+            const parsed = JSON.parse(data);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              keywordGroups = parsed;
+              selectedGroups = new Set([0]);
+            }
+          }
+        } catch (e) {}
+      }
+
+      function exportGroups() {
+        const data = JSON.stringify(keywordGroups, null, 2);
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "pdf-search-groups.json";
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function importGroups(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const parsed = JSON.parse(e.target.result);
+            if (!Array.isArray(parsed) || parsed.length === 0) {
+              alert("文件格式不正确");
+              return;
+            }
+            const valid = parsed.every((g) => typeof g.name === "string" && Array.isArray(g.keywords));
+            if (!valid) {
+              alert("文件格式不正确");
+              return;
+            }
+            keywordGroups = parsed;
+            selectedGroups = new Set([0]);
+            groupMatches = {};
+            keywordMatchIndex = {};
+            activeKeywordIndex = -1;
+            saveGroups();
+            closeAllDropdowns();
+            renderGroupTabs();
+            if (currentPdf) searchAllKeywords();
+          } catch (err) {
+            alert("导入失败：" + err.message);
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      function clearSavedData() {
+        if (!confirm("确认清除所有保存的分组数据？")) return;
+        localStorage.removeItem(STORAGE_KEY);
+        keywordGroups = [{ name: "分组1", keywords: [] }];
+        selectedGroups = new Set([0]);
+        groupMatches = {};
+        keywordMatchIndex = {};
+        activeKeywordIndex = -1;
+        saveGroups();
+        closeAllDropdowns();
+        renderGroupTabs();
+        renderKeywordStats();
+        if (currentPdf) drawCurrentPageHighlights();
+      }
+
+      document.getElementById("importFileInput").addEventListener("change", function(e) {
+        if (e.target.files.length > 0) {
+          importGroups(e.target.files[0]);
+          e.target.value = "";
+        }
+      });
+
+      // ===== Utility =====
+
+      function escapeHtml(str) {
+        const div = document.createElement("div");
+        div.textContent = str;
+        return div.innerHTML;
+      }
+    </script>
+  </body>
+</html>

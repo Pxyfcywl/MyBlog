@@ -4,6 +4,20 @@
 
 ---
 
+## v0.6.0 — 2026-06-16
+
+### 新增
+- **PDF 人工审核模式** — AI 审查完成后可进入人工审核：左侧 AI 结果侧边栏（Markdown 渲染、复制/下载）+ 右侧 PDF 多关键词搜索工具（iframe 嵌入）
+- **PDF 搜索工具集成** — `pdf-search-tool.html` 复制到 `frontend/public/`，通过 iframe 加载，保留原有全部功能（分组、JSON 导入导出、匹配统计）
+- **本地草书字体** — Ma Shan Zheng 字体文件下载到 `public/fonts/`，Hero 页打字机效果使用，不依赖 Google Fonts CDN
+
+### 变更
+- **Hero 页面背景图路径** — 从 `../public/background.jpg` 修正为 `/background.jpg`，修复服务器部署后背景图 404
+- **Hero 页打字机样式** — 从纯色改为蓝紫粉渐变流光效果 + 草书字体
+- **pdfjs-dist** — 新增依赖 `pdfjs-dist@4.10.38`（PDF 浏览器渲染，备用）
+
+---
+
 ## v0.5.0 — 2026-06-15
 
 ### 新增

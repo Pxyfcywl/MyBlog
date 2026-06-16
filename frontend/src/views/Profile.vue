@@ -21,9 +21,14 @@ const features = [
   { icon: '🎵', title: '音乐播放器', desc: '内置音乐播放器，支持多种播放模式' },
   { icon: '📄', title: '文档解析', desc: 'MinerU 驱动，PDF/Office 转 Markdown' },
   { icon: '🤖', title: 'AI 智能审查', desc: 'LLM 驱动，支持自定义审查要求' },
+  { icon: '📋', title: '人工审核', desc: 'PDF 原文查看 + 多关键词搜索 + AI 结果侧边栏' },
 ]
 
 const changelog = [
+  {
+    version: 'v0.6.0', date: '2026-06-16',
+    items: ['PDF 人工审核模式（AI 结果侧边栏 + PDF 多关键词搜索）', 'Hero 页草书字体 + 渐变流光效果', '背景图路径修复（服务器部署不再 404）', 'Ma Shan Zheng 字体本地化']
+  },
   {
     version: 'v0.4.0', date: '2026-06-15',
     items: ['MinerU 文档解析集成（PDF/Office → Markdown）', 'LLM 智能审查（支持自定义审查要求）', '大模型配置面板（可切换 DeepSeek/Mimo/百炼/智谱）', 'Embedding 知识库向量化准备', '文章详情页宽度优化']
